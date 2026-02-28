@@ -19,7 +19,7 @@ Two environment variables must be set in the shell:
 
 | Variable | Purpose |
 |----------|---------|
-| `CIRCLE_API_KEY` | Bearer token for Circle Admin API v2 |
+| `CIRCLE_API_KEY` | Token for Circle Admin API v2 |
 | `CIRCLE_COMMUNITY_ID` | Numeric community ID |
 
 ## Validation Procedure
@@ -52,7 +52,7 @@ Fetch community info to verify credentials work:
 
 ```bash
 curl -s -w "\nHTTP_STATUS:%{http_code}" \
-  -H "Authorization: Bearer $CIRCLE_API_KEY" \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/community_members?community_id=$CIRCLE_COMMUNITY_ID&per_page=1"
 ```
 
@@ -69,7 +69,7 @@ On successful connection, fetch a community snapshot:
 
 ```bash
 # Get spaces (shows community structure)
-curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/spaces?community_id=$CIRCLE_COMMUNITY_ID&per_page=100" | jq '{
     space_count: (.records | length),
     spaces: [.records[] | {id, name, slug}]
@@ -78,7 +78,7 @@ curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
 
 ```bash
 # Get member count (first page tells us total via has_next_page)
-curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/community_members?community_id=$CIRCLE_COMMUNITY_ID&per_page=1" | jq '{
     has_members: (.records | length > 0),
     has_next_page: .has_next_page
@@ -104,7 +104,7 @@ Present results as a summary table:
 ## API Reference
 
 - **Base URL**: `https://app.circle.so/api/admin/v2`
-- **Auth header**: `Authorization: Bearer $CIRCLE_API_KEY`
+- **Auth header**: `Authorization: Token $CIRCLE_API_KEY`
 - **Content-Type**: `application/json` (for POST/PUT/PATCH)
 - **Community scoping**: Every endpoint requires `community_id` as a query param or body field
 - **Rate limit**: Respect 429 responses; Circle enforces per-token limits

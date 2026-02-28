@@ -19,12 +19,12 @@ Ensure `$CIRCLE_API_KEY` and `$CIRCLE_COMMUNITY_ID` are set. If not, activate th
 
 ## Core API Endpoints
 
-All requests use base URL `https://app.circle.so/api/admin/v2` with header `Authorization: Bearer $CIRCLE_API_KEY`.
+All requests use base URL `https://app.circle.so/api/admin/v2` with header `Authorization: Token $CIRCLE_API_KEY`.
 
 ### List Members (paginated)
 
 ```bash
-curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/community_members?community_id=$CIRCLE_COMMUNITY_ID&per_page=100&page=1"
 ```
 
@@ -35,7 +35,7 @@ Each member record contains: `id`, `name`, `email`, `avatar_url`, `created_at`, 
 ### Search Members
 
 ```bash
-curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/community_members/search?community_id=$CIRCLE_COMMUNITY_ID&query=SEARCH_TERM"
 ```
 
@@ -44,7 +44,7 @@ Search matches against name and email. Replace `SEARCH_TERM` with the search str
 ### Get Single Member
 
 ```bash
-curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/community_members/MEMBER_ID?community_id=$CIRCLE_COMMUNITY_ID"
 ```
 
@@ -52,7 +52,7 @@ curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
 
 ```bash
 curl -s -X POST \
-  -H "Authorization: Bearer $CIRCLE_API_KEY" \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "community_id": '"$CIRCLE_COMMUNITY_ID"',
@@ -72,7 +72,7 @@ Optional fields:
 
 ```bash
 curl -s -X PUT \
-  -H "Authorization: Bearer $CIRCLE_API_KEY" \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "community_id": '"$CIRCLE_COMMUNITY_ID"',
@@ -85,7 +85,7 @@ curl -s -X PUT \
 
 ```bash
 curl -s -X DELETE \
-  -H "Authorization: Bearer $CIRCLE_API_KEY" \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/community_members/MEMBER_ID?community_id=$CIRCLE_COMMUNITY_ID"
 ```
 
@@ -98,14 +98,14 @@ Returns HTTP 204 on success (no body).
 Fetch all spaces to find space IDs:
 
 ```bash
-curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/spaces?community_id=$CIRCLE_COMMUNITY_ID&per_page=100"
 ```
 
 ### List Members in a Space
 
 ```bash
-curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/space_members?community_id=$CIRCLE_COMMUNITY_ID&space_id=SPACE_ID&per_page=100&page=1"
 ```
 
@@ -113,7 +113,7 @@ curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
 
 ```bash
 curl -s -X POST \
-  -H "Authorization: Bearer $CIRCLE_API_KEY" \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "community_id": '"$CIRCLE_COMMUNITY_ID"',
@@ -127,14 +127,14 @@ curl -s -X POST \
 
 ```bash
 curl -s -X DELETE \
-  -H "Authorization: Bearer $CIRCLE_API_KEY" \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/space_members?community_id=$CIRCLE_COMMUNITY_ID&space_id=SPACE_ID&community_member_id=MEMBER_ID"
 ```
 
 ### List a Member's Spaces
 
 ```bash
-curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/community_member_spaces?community_id=$CIRCLE_COMMUNITY_ID&community_member_id=MEMBER_ID"
 ```
 
@@ -150,7 +150,7 @@ Circle returns max 100 records per page. To collect all records:
 For member listing, pipe through jq to extract useful fields:
 
 ```bash
-curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/community_members?community_id=$CIRCLE_COMMUNITY_ID&per_page=100&page=1" \
   | jq '[.records[] | {id, name, email, created_at}]'
 ```

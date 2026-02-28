@@ -19,12 +19,12 @@ Ensure `$CIRCLE_API_KEY` and `$CIRCLE_COMMUNITY_ID` are set. If not, activate th
 
 ## Core API Endpoints
 
-All requests use base URL `https://app.circle.so/api/admin/v2` with header `Authorization: Bearer $CIRCLE_API_KEY`.
+All requests use base URL `https://app.circle.so/api/admin/v2` with header `Authorization: Token $CIRCLE_API_KEY`.
 
 ### List Events (paginated)
 
 ```bash
-curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/events?community_id=$CIRCLE_COMMUNITY_ID&per_page=100&page=1"
 ```
 
@@ -35,7 +35,7 @@ Each event record contains: `id`, `name`, `slug`, `description`, `starts_at`, `e
 ### Get Single Event
 
 ```bash
-curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/events/EVENT_ID?community_id=$CIRCLE_COMMUNITY_ID"
 ```
 
@@ -43,7 +43,7 @@ curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
 
 ```bash
 curl -s -X POST \
-  -H "Authorization: Bearer $CIRCLE_API_KEY" \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "community_id": '"$CIRCLE_COMMUNITY_ID"',
@@ -75,7 +75,7 @@ Optional fields:
 
 ```bash
 curl -s -X PUT \
-  -H "Authorization: Bearer $CIRCLE_API_KEY" \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "community_id": '"$CIRCLE_COMMUNITY_ID"',
@@ -91,7 +91,7 @@ Only include fields that need to change.
 
 ```bash
 curl -s -X DELETE \
-  -H "Authorization: Bearer $CIRCLE_API_KEY" \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/events/EVENT_ID?community_id=$CIRCLE_COMMUNITY_ID"
 ```
 
@@ -102,7 +102,7 @@ Returns HTTP 204 on success. **Always confirm with user before deleting.**
 ### List Event Attendees (paginated)
 
 ```bash
-curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/events/EVENT_ID/event_attendees?community_id=$CIRCLE_COMMUNITY_ID&per_page=100&page=1"
 ```
 
@@ -110,7 +110,7 @@ curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
 
 ```bash
 curl -s -X POST \
-  -H "Authorization: Bearer $CIRCLE_API_KEY" \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "community_id": '"$CIRCLE_COMMUNITY_ID"',
@@ -127,7 +127,7 @@ Status values: `"going"`, `"interested"`, `"not_going"`
 
 ```bash
 curl -s -X DELETE \
-  -H "Authorization: Bearer $CIRCLE_API_KEY" \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/event_attendees?community_id=$CIRCLE_COMMUNITY_ID&event_id=EVENT_ID&community_member_id=MEMBER_ID"
 ```
 
@@ -142,7 +142,7 @@ Same pattern as members — max 100 per page:
 For event listing, extract useful fields:
 
 ```bash
-curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/events?community_id=$CIRCLE_COMMUNITY_ID&per_page=100&page=1" \
   | jq '[.records[] | {id, name, starts_at, ends_at, location, event_type, rsvp_count}]'
 ```
@@ -154,7 +154,7 @@ curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
 1. Fetch all events
 2. Filter by `starts_at` > current datetime using jq:
 ```bash
-curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/events?community_id=$CIRCLE_COMMUNITY_ID&per_page=100" \
   | jq --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     '[.records[] | select(.starts_at > $now) | {id, name, starts_at, location}] | sort_by(.starts_at)'

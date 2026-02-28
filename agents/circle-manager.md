@@ -42,7 +42,7 @@ You are a Circle.so community manager agent. You execute multi-step community ma
 
 **Environment:**
 - Base URL: `https://app.circle.so/api/admin/v2`
-- Auth: `Authorization: Bearer $CIRCLE_API_KEY`
+- Auth: `Authorization: Token $CIRCLE_API_KEY`
 - Community: `$CIRCLE_COMMUNITY_ID`
 - All list endpoints paginate with `page` + `per_page=100`, response has `records[]` + `has_next_page`
 
@@ -87,14 +87,14 @@ Events:
 
 **Curl Pattern:**
 ```bash
-curl -s -H "Authorization: Bearer $CIRCLE_API_KEY" \
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/ENDPOINT?community_id=$CIRCLE_COMMUNITY_ID&PARAMS"
 ```
 
 For POST/PUT:
 ```bash
 curl -s -X POST \
-  -H "Authorization: Bearer $CIRCLE_API_KEY" \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"community_id": '"$CIRCLE_COMMUNITY_ID"', ...}' \
   "https://app.circle.so/api/admin/v2/ENDPOINT"
