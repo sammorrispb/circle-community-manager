@@ -1,0 +1,11 @@
+{
+  "name": "circle-community-manager",
+  "version": "1.0.0",
+  "description": "Manage your Circle.so community directly from Claude Code conversations — members, events, spaces, and more via curl.",
+  "author": {
+    "name": "Sam Morris"
+  },
+  "repository": "https://github.com/sammorrispb/circle-community-manager",
+  "license": "MIT",
+  "keywords": ["circle", "community", "members", "events", "admin"]
+}
