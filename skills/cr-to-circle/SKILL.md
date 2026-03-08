@@ -5,7 +5,7 @@ description: >-
   to Circle", "create Circle events from CR", "sync tournaments", "push CR
   events to Circle", "cr-to-circle", or any operation involving syncing
   events from CourtReserve to Circle.so community.
-version: 1.1.0
+version: 1.2.0
 ---
 
 # CourtReserve to Circle Event Sync
@@ -82,14 +82,38 @@ Before creating a Circle event, check if one already exists with:
    - Collapse multiple spaces to single space
    - Trim leading/trailing whitespace
 2. **Same start date** (compare date portion `YYYY-MM-DD` only, not exact timestamp)
+3. **Same location** — extract from Circle's `in_person_location` field (see below)
 
-If both match, skip the event and report it as "already synced."
+The dedup key is `normalized_name|date|location`. All three must match to consider an event a duplicate.
 
-**Important**: During a bulk run, also track events created in the current session. After each successful Circle create, add the normalized name + date to the dedup set. This prevents duplicate creation when CR returns entries that would normalize to the same key.
+**Why location matters**: Both Rockville and North Bethesda often have the same program on the same date (e.g., "Orange Ball: Next Gen Pickleball Academy"). Without location in the key, a bash associative array (last-write-wins) will silently drop one location's event.
+
+If all three match, skip the event and report it as "already synced."
+
+**Important**: During a bulk run, also track events created in the current session. After each successful Circle create, add the normalized name + date + location to the dedup set. This prevents duplicate creation when CR returns entries that would normalize to the same key.
 
 **Normalization example**:
 - "Link & Dink Tournament – Women's Only (3.0–3.5)" → `link and dink tournament womens only 3035`
 - "Link and Dink Tournament: Women's ONLY 3.0-3.5" → `link and dink tournament womens only 3035`
+
+These normalize identically — multiple syncs with different punctuation conventions WILL create duplicates if you don't dedup. See "Duplicate Detection & Cleanup" below.
+
+### Extracting location from Circle events
+
+Circle's `in_person_location` is a JSON string containing the venue name. Use it to determine location:
+
+```bash
+c_loc_raw=$(echo "$CIRCLE_EVENTS" | jq -r ".[$i].in_person_location // \"\"")
+if echo "$c_loc_raw" | grep -qi "rockville"; then
+  c_loc="rv"
+elif echo "$c_loc_raw" | grep -qi "bethesda"; then
+  c_loc="nb"
+else
+  c_loc="unknown"
+fi
+```
+
+When processing CR events, derive location from which org they came from: Rockville (OrgId 10869) → `rv`, North Bethesda (OrgId 10483) → `nb`.
 
 ### Normalization in bash/jq
 
@@ -113,6 +137,42 @@ while true; do
   PAGE=$((PAGE + 1))
 done
 ```
+
+## Duplicate Detection & Cleanup
+
+Multiple sync runs or punctuation differences between CR exports can create duplicate Circle events. The telltale sign: events with `ends_at == starts_at` (broken time conversion) alongside correct versions of the same event.
+
+### Finding duplicates
+
+```bash
+# Find all events where ends_at == starts_at (broken duplicates)
+echo "$CIRCLE_RELEVANT" | jq '[.[] | select(.starts_at == .ends_at) | {id, name, starts_at, space: .space.id}]'
+```
+
+### Verifying a broken event has a correct twin
+
+Before deleting, confirm a correct version exists at the same location and date:
+
+```bash
+# For a broken event, search for its twin by normalized name + date + location
+echo "$CIRCLE_RELEVANT" | jq '[.[] | select(.starts_at[:10] == "YYYY-MM-DD") | select(.starts_at != .ends_at)]'
+```
+
+### Deleting duplicate events
+
+Circle's DELETE endpoint requires `space_id` as a query parameter:
+
+```bash
+curl -s -X DELETE \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
+  "https://app.circle.so/api/admin/v2/events/EVENT_ID?community_id=$CIRCLE_COMMUNITY_ID&space_id=SPACE_ID"
+```
+
+Without `space_id`, the API returns 404 with "Missing parameter: space_id".
+
+**Space IDs**: Tournament = `1916764`, NextGen = `1718302`.
+
+Add 1s spacing between deletes to avoid rate limiting.
 
 ## Description Templates
 
@@ -218,6 +278,16 @@ curl -s -X PUT \
 - Flat `ends_at` on the `event` object is optional (belt-and-suspenders; the duration field does the real work)
 - `ends_at` inside `event_setting_attributes` is silently ignored on PUT — never rely on it for updates
 
+### DELETE — Requires `space_id` query param
+
+```bash
+curl -s -X DELETE \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
+  "https://app.circle.so/api/admin/v2/events/EVENT_ID?community_id=$CIRCLE_COMMUNITY_ID&space_id=SPACE_ID"
+```
+
+Returns 200 on success. Without `space_id`, returns 404 "Missing parameter: space_id".
+
 ## CourtReserve Event List API
 
 ```bash
@@ -260,6 +330,7 @@ For large syncs (100+ events):
 | Date | Range | Rockville | North Bethesda | Total | Failures |
 |------|-------|-----------|---------------|-------|----------|
 | 2026-03-07 | Mar 7 – May 31, 2026 | 71 (17T + 54NG) | 68 (22T + 46NG) | 139 | 0 |
+| 2026-03-08 | Cleanup | — | — | 11 deleted | Broken duplicates (ends_at == starts_at) from first sync |
 
 ## Error Handling
 
