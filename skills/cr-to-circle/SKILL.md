@@ -199,7 +199,7 @@ curl -s -H "Authorization: Basic $AUTH" -H "Content-Type: application/json" \
 
 Response: `{ "Data": [...] }` — each item has `EventId`, `EventName`, `StartDateTime`, `EndDateTime`, `EventCategoryName`, `MaxRegistrants`, `RegisteredCount`, `IsCanceled`, `PublicEventUrl`.
 
-**CR date format**: `StartDateTime` and `EndDateTime` are `M/D/YYYY H:MM:SS AM/PM` (Eastern time). Convert to ISO 8601 UTC with `date -d "$dt" -u +"%Y-%m-%dT%H:%M:%S.000Z"`.
+**CR date format**: `StartDateTime` and `EndDateTime` are `M/D/YYYY H:MM:SS AM/PM` (Eastern time). Convert to ISO 8601 UTC with `TZ=America/New_York date -d "$dt" -u +"%Y-%m-%dT%H:%M:%S.000Z"`. The `TZ=America/New_York` prefix ensures the input is interpreted as Eastern time (handles EST/EDT automatically) before converting to UTC.
 
 **Volume note**: A 3-month window returns ~400+ total events per location. Only ~70 per location match tournament/Next Gen filters. The rest are open play, clinics, leagues, etc.
 
