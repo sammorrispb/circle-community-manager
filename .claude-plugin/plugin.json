@@ -1,11 +1,11 @@
 {
   "name": "circle-community-manager",
-  "version": "1.2.0",
-  "description": "Manage your Circle.so community directly from Claude Code conversations — members, events, posts, spaces, and more via curl.",
+  "version": "1.3.0",
+  "description": "Manage your Circle.so community and orchestrate cross-system workflows across Circle, CourtReserve, Play Date, Next Gen Academy, and The Hub — all from Claude Code conversations via curl.",
   "author": {
     "name": "Sam Morris"
   },
   "repository": "https://github.com/sammorrispb/circle-community-manager",
   "license": "MIT",
-  "keywords": ["circle", "community", "members", "events", "admin"]
+  "keywords": ["circle", "community", "members", "events", "admin", "ecosystem", "courtreserve", "playdate", "nextgen"]
 }

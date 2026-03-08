@@ -1,14 +1,23 @@
 # Circle Community Manager
 
-A Claude Code plugin for managing your Circle.so community directly from conversations. Invite members, create events, publish posts, check RSVPs, and analyze engagement — all without leaving the terminal.
+A Claude Code plugin for managing your Circle.so community and orchestrating cross-system workflows across the Dill Dinkers ecosystem — Circle (community), CourtReserve (facilities), Play Date (intake), Next Gen Academy (youth), and The Hub (intelligence). All from conversations via curl.
 
 ## Prerequisites
 
 Set these environment variables before use:
 
 ```bash
+# Circle (required)
 export CIRCLE_API_KEY="your-circle-admin-api-v2-token"
 export CIRCLE_COMMUNITY_ID="your-numeric-community-id"
+
+# CourtReserve (optional — enables cross-system features)
+export COURTRESERVE_ROCKVILLE_USERNAME="..."
+export COURTRESERVE_ROCKVILLE_PASSWORD="..."
+export COURTRESERVE_ROCKVILLE_ORG_ID="10869"
+export COURTRESERVE_NORTHBETHESDA_USERNAME="..."
+export COURTRESERVE_NORTHBETHESDA_PASSWORD="..."
+export COURTRESERVE_NORTHBETHESDA_ORG_ID="10483"
 ```
 
 **Getting your API key:** Circle Admin Settings > API > Generate Admin API v2 token
@@ -39,6 +48,8 @@ Or add to `~/.claude/settings.json`:
 | `/circle-health` | Community snapshot: spaces, member count, recent events |
 | `/cr-to-circle` | Sync CourtReserve events to Circle (tournaments + Next Gen) |
 | `/circle-playdate-invite` | Create a post with Play Date invite links for event attendees |
+| `/post-event-survey` | Pairwise rating survey pipeline — CR registrants → voter links → results |
+| `/ecosystem-report` | Daily ecosystem briefing across Circle, CourtReserve, and Play Date |
 
 ### Examples
 
@@ -50,19 +61,30 @@ Or add to `~/.claude/settings.json`:
 /circle-posts list in Events
 /circle-posts announce "Spring Tournament Results" in Tournaments
 /circle-playdate-invite Thursday Round Robin
+/post-event-survey Round Robin
+/post-event-survey status "Link & Dink Round Robin — Mar 8"
 /circle-health
 /cr-to-circle both 30
+/ecosystem-report
 ```
 
 ## Skills
 
 Skills activate automatically when Claude detects relevant context:
 
+### Circle Core
 - **circle-setup** — Validates environment and tests API connectivity
 - **circle-members** — Member CRUD, search, space management, bulk operations, Headless API
 - **circle-events** — Event CRUD, attendee management patterns
 - **circle-posts** — Post/comment CRUD, announcements, Play Date invite links
 - **cr-to-circle** — CourtReserve → Circle event sync with dedup
+
+### Ecosystem Integration (v1.3.0)
+- **ecosystem-lookup** — Cross-system player search across Circle + CourtReserve + Play Date
+- **post-event-workflow** — Pairwise rating survey pipeline: CR registrants → session → voter links → results
+- **ecosystem-health** — Full ecosystem dashboard across all connected systems
+- **nextgen-circle** — Next Gen Academy ↔ Circle bridge: recaps, parent invites, schedule posts
+- **hub-agent-bridge** — Hub AI Agent interface: insights, actions, and community bridging
 
 ## Agent
 
@@ -73,10 +95,17 @@ The **circle-manager** agent handles multi-step operations that span multiple AP
 - "Show me members in Rockville but not in Events space"
 - "Post the tournament results in the Tournaments space"
 - "Create Play Date invite links for Thursday's event attendees"
+- "Look up this player across Circle and CourtReserve"
+- "Run the post-event workflow for last night's Round Robin"
+- "Give me a full ecosystem health check"
+- "Post a Next Gen session recap in Circle"
+- "What does the Hub agent recommend for upcoming events?"
 
 ## Architecture
 
-This plugin uses **skills-over-MCP**: skills teach Claude the Circle API patterns, and Claude executes them via `curl` in Bash. No separate server process, no runtime dependencies, fully portable.
+This plugin uses **skills-over-MCP**: skills teach Claude the API patterns for Circle, CourtReserve, and The Hub, and Claude executes them via `curl` in Bash. No separate server process, no runtime dependencies, fully portable.
+
+**Email is the universal join key** across all systems (Circle, CourtReserve, Play Date, Hub).
 
 ## API Coverage
 
@@ -90,6 +119,11 @@ This plugin uses **skills-over-MCP**: skills teach Claude the Circle API pattern
 | Comments | List, create, delete | ✅ Full |
 | Topics | List (via space object) | ✅ Read-only |
 | CR → Circle Sync | Event sync with dedup | ✅ Full |
+| Ecosystem Lookup | Cross-system player search | ✅ Full |
+| Post-Event Pipeline | Attendees → links → recap | ✅ Full |
+| Ecosystem Health | Multi-system dashboard | ✅ Full |
+| Next Gen ↔ Circle | Recaps, invites, schedules | ✅ Full |
+| Hub Agent Bridge | Agent insights + actions | ✅ Full |
 | Headless Auth | JWT token generation for member-level APIs | 📝 Documented |
 | DMs / Chat | Not available in Admin API v2 | ❌ Not supported |
 
@@ -104,11 +138,16 @@ This plugin uses **skills-over-MCP**: skills teach Claude the Circle API pattern
 | Attendees | `/event_attendees` |
 | Posts | `/posts` ⚠️ (do NOT include `community_id`) |
 | Comments | `/comments` ⚠️ (do NOT include `community_id`) |
+| CR Members | `api.courtreserve.com/api/v1/member/get` |
+| CR Events | `api.courtreserve.com/api/v1/eventcalendar/eventlist` |
+| Hub Agent | `the-hub-nine.vercel.app/api/ai-admin` |
 
 ### Authentication
 
-- **Admin API v2**: `Authorization: Token $CIRCLE_API_KEY`
-- **Headless API**: `Authorization: Bearer $CIRCLE_API_KEY` (for JWT generation)
+- **Circle Admin API v2**: `Authorization: Token $CIRCLE_API_KEY`
+- **Circle Headless API**: `Authorization: Bearer $CIRCLE_API_KEY` (for JWT generation)
+- **CourtReserve**: `Authorization: Basic $AUTH` (base64-encoded username:password)
+- **Hub API**: Supabase JWT (requires admin session)
 
 ### Known Limitations
 
@@ -116,3 +155,5 @@ This plugin uses **skills-over-MCP**: skills teach Claude the Circle API pattern
 - **Topics are read-only**: Topic IDs can be read from space objects and attached to posts, but topics cannot be created/deleted via API — use the Circle web UI.
 - **Rate limiting**: Circle enforces per-token rate limits. After bulk writes (100+ calls), the API may return 401 "API token not found" on subsequent reads for 5-10 minutes. Rapid-fire requests to non-existent endpoints can trigger permanent token revocation — probe unknown endpoints at max 1 request per 3 seconds, max 3 per session.
 - **Post body is HTML**: The `body` field in posts accepts HTML content, not plain text or Markdown.
+- **CR no free-text search**: CourtReserve member lookup requires email, phone, or member ID — no name search. Use Circle to find the email first, then look up in CR.
+- **Hub API requires auth**: Hub endpoints need Supabase admin credentials, which may not be available from terminal sessions.
