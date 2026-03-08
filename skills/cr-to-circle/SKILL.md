@@ -1,16 +1,21 @@
 ---
-name: CR to Circle Event Sync
+name: CR to Circle Sync
 description: >-
   This skill should be used when the user asks to "sync CourtReserve events
   to Circle", "create Circle events from CR", "sync tournaments", "push CR
-  events to Circle", "cr-to-circle", or any operation involving syncing
-  events from CourtReserve to Circle.so community.
-version: 1.2.0
+  events to Circle", "cr-to-circle", "sync leagues to Circle", "add league
+  members to Circle space", "partner finding post", "sync coached open play",
+  "group sync", "space membership sync", or any operation involving syncing
+  events, groups, or members from CourtReserve to Circle.so community.
+version: 2.0.0
 ---
 
-# CourtReserve to Circle Event Sync
+# CourtReserve to Circle Sync
 
-Sync Dill Dinkers events from CourtReserve (source of truth) to Circle.so community. Supports tournaments/competitive events and Next Gen programs across both locations.
+Sync Dill Dinkers events and groups from CourtReserve (source of truth) to Circle.so community. Supports:
+
+- **Event sync**: Tournaments and Next Gen programs → Circle events (existing)
+- **Group sync**: Leagues, coached open play, tournament partner-finding → Circle space memberships and discussion posts (new — see `references/group-sync.md`)
 
 ## Prerequisites
 
@@ -24,12 +29,28 @@ Sync Dill Dinkers events from CourtReserve (source of truth) to Circle.so commun
 
 ## Category Filters
 
+### Event Sync Categories (create Circle events)
+
 Events are selected from CR based on these patterns (case-insensitive):
 
 | Category | Filter Logic |
 |----------|-------------|
 | Tournaments | `EventCategoryName` contains "Competitive Events" or "Tournament" OR `EventName` matches "Link & Dink" or "Tournament" |
 | Next Gen | `EventCategoryName` or `EventName` contains "Next Gen" or "Kids Program" |
+
+### Group Sync Categories (sync to Circle spaces)
+
+These categories sync registrant memberships and discussion posts to Circle spaces. See `references/group-sync.md` for full workflows, templates, and space ID mapping.
+
+| Category | Circle Space | Sync Action | Lifecycle |
+|----------|-------------|-------------|-----------|
+| League | Season-based space (e.g., "Spring 2026 Leagues") | Add registrants to space + schedule post | New space each season |
+| Tournament | Tournaments (`1916764`) | Partner-finding discussion post | Per-event |
+| Coached Open Play | Level-based space (e.g., "Coached Open Play: 3.0-3.5") | Add attendees to space + schedule post | Persistent |
+
+**Member matching**: CR → Circle matching uses email. Search Circle with `GET /api/admin/v2/community_members/search?query=EMAIL`, then add to space with `POST /api/admin/v2/space_members`.
+
+**Space creation constraint**: Circle spaces cannot be created via API. Pre-create spaces manually in the Circle web UI, then store the space ID in `references/group-sync.md`.
 
 Always exclude cancelled events (`IsCanceled == true`).
 
@@ -331,6 +352,57 @@ For large syncs (100+ events):
 |------|-------|-----------|---------------|-------|----------|
 | 2026-03-07 | Mar 7 – May 31, 2026 | 71 (17T + 54NG) | 68 (22T + 46NG) | 139 | 0 |
 | 2026-03-08 | Cleanup | — | — | 11 deleted | Broken duplicates (ends_at == starts_at) from first sync |
+
+## Group Sync Workflows
+
+For detailed workflows, templates, and space ID mappings, see `references/group-sync.md`.
+
+### Quick Reference: League Sync
+
+```bash
+# 1. Fetch league events from CR
+TODAY=$(date +%Y-%m-%d); END=$(date -d "+90 days" +%Y-%m-%d)
+curl -s -H "Authorization: Basic $AUTH" -H "Content-Type: application/json" \
+  "https://api.courtreserve.com/api/v1/eventcalendar/eventlist?OrgId=$ORG_ID&StartDate=$TODAY&EndDate=$END" \
+  | jq '[.Data[] | select(.IsCanceled == false) | select(.EventCategoryName | ascii_downcase | startswith("league"))]'
+
+# 2. Get registrations for league events
+FROM="${TODAY}T00:00:00"; TO="${END}T23:59:59"
+curl -s -H "Authorization: Basic $AUTH" -H "Content-Type: application/json" \
+  "https://api.courtreserve.com/api/v1/eventregistrationreport/listactive?OrgId=$ORG_ID&eventDateFrom=$FROM&eventDateTo=$TO" \
+  | jq '[.Data[] | select(.EventName | ascii_downcase | contains("league")) | {Email, Name: "\(.FirstName) \(.LastName)", EventName}]'
+
+# 3. Match each registrant email → Circle member → add to space
+# See references/group-sync.md for the full matching workflow
+```
+
+### Quick Reference: Tournament Partner-Finding Post
+
+```bash
+# After syncing a tournament event to Circle, create a partner-finding post
+EVENT_NAME="Link and Dink Tournament: Mixed Doubles 3.5+"
+BODY=$(cat <<'POSTEOF'
+🏓 Partner Finding — EVENT_NAME_HERE
+
+Looking for a partner? Drop a comment with your rating and what you're looking for.
+
+Register on CourtReserve: EVENT_URL_HERE
+POSTEOF
+)
+BODY_JSON=$(echo "$BODY" | jq -Rs .)
+
+curl -s -X POST \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "community_id": '"$CIRCLE_COMMUNITY_ID"',
+    "space_id": 1916764,
+    "name": "Partner Finding — '"$EVENT_NAME"'",
+    "body": '"$BODY_JSON"',
+    "is_comments_enabled": true
+  }' \
+  "https://app.circle.so/api/admin/v2/posts"
+```
 
 ## Error Handling
 
