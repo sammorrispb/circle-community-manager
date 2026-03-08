@@ -154,7 +154,9 @@ Register on CourtReserve:
 [PublicEventUrl]
 ```
 
-## Circle Event Creation API Shape
+## Circle Event API Shapes
+
+### POST (Create) — `ends_at` works in nested attributes
 
 Uses the confirmed Rails nested resource pattern:
 
@@ -188,6 +190,33 @@ curl -s -X POST \
 ```
 
 **Critical**: `in_person_location` must be a JSON-stringified object (not null), or the API returns "Nil is not a valid JSON source."
+
+### PUT (Update) — Must use `duration_in_seconds`
+
+Circle's Rails backend silently ignores `ends_at` inside `event_setting_attributes` on PUT updates (Rails nested attributes quirk — the field is accepted without error but discarded). Use `duration_in_seconds` instead:
+
+```bash
+curl -s -X PUT \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "community_id": '"$CIRCLE_COMMUNITY_ID"',
+    "space_id": SPACE_ID,
+    "event": {
+      "ends_at": "ISO_END",
+      "event_setting_attributes": {
+        "starts_at": "ISO_START",
+        "duration_in_seconds": SECONDS
+      }
+    }
+  }' \
+  "https://app.circle.so/api/admin/v2/events/EVENT_ID"
+```
+
+**Key differences from POST**:
+- `duration_in_seconds` (integer) in `event_setting_attributes` — the API computes `ends_at = starts_at + duration`
+- Flat `ends_at` on the `event` object is optional (belt-and-suspenders; the duration field does the real work)
+- `ends_at` inside `event_setting_attributes` is silently ignored on PUT — never rely on it for updates
 
 ## CourtReserve Event List API
 

@@ -113,7 +113,18 @@ for i in $(seq 0 $((circle_count - 1))); do
   c_space=$(echo "$CIRCLE_RELEVANT" | jq -r ".[$i].space.id")
   c_date="${c_starts:0:10}"
   c_norm=$(normalize_name "$c_name")
-  CIRCLE_LOOKUP["${c_norm}|${c_date}"]="${c_id}|${c_space}|${c_starts}|${c_ends}"
+
+  # Extract location from in_person_location to disambiguate same-name events
+  c_loc_raw=$(echo "$CIRCLE_RELEVANT" | jq -r ".[$i].in_person_location // \"\"")
+  if echo "$c_loc_raw" | grep -qi "rockville"; then
+    c_loc="rv"
+  elif echo "$c_loc_raw" | grep -qi "bethesda"; then
+    c_loc="nb"
+  else
+    c_loc="unknown"
+  fi
+
+  CIRCLE_LOOKUP["${c_norm}|${c_date}|${c_loc}"]="${c_id}|${c_space}|${c_starts}|${c_ends}"
 done
 
 echo "  Indexed ${#CIRCLE_LOOKUP[@]} Circle events"
@@ -128,6 +139,7 @@ MATCH_COUNT=0
 
 process_cr_events() {
   local cr_events="$1"
+  local cr_loc="$2"  # "rv" or "nb"
   local count
   count=$(echo "$cr_events" | jq 'length')
 
@@ -144,7 +156,7 @@ process_cr_events() {
     correct_start=$(eastern_to_utc "$cr_start")
     correct_end=$(eastern_to_utc "$cr_end")
 
-    local key="${norm_name}|${cr_date}"
+    local key="${norm_name}|${cr_date}|${cr_loc}"
     if [ -n "${CIRCLE_LOOKUP[$key]+x}" ]; then
       IFS='|' read -r c_id c_space c_cur_start c_cur_end <<< "${CIRCLE_LOOKUP[$key]}"
 
@@ -159,8 +171,8 @@ process_cr_events() {
   done
 }
 
-process_cr_events "$RV_FILTERED"
-process_cr_events "$NB_FILTERED"
+process_cr_events "$RV_FILTERED" "rv"
+process_cr_events "$NB_FILTERED" "nb"
 
 echo "  Matched (needing update): $MATCH_COUNT"
 echo "  Unmatched: ${#UNMATCHED[@]}"
@@ -210,6 +222,11 @@ total=${#UPDATES[@]}
 for c_id in "${!UPDATES[@]}"; do
   IFS='|' read -r space_id correct_start correct_end name current_start <<< "${UPDATES[$c_id]}"
 
+  # Compute duration_in_seconds (Circle ignores ends_at in nested attrs on PUT)
+  start_epoch=$(date -d "$correct_start" +%s)
+  end_epoch=$(date -d "$correct_end" +%s)
+  duration=$((end_epoch - start_epoch))
+
   HTTP_CODE=$(curl -s -o /tmp/circle_update_resp.json -w "%{http_code}" -X PUT \
     -H "Authorization: Token $CIRCLE_API_KEY" \
     -H "Content-Type: application/json" \
@@ -217,17 +234,23 @@ for c_id in "${!UPDATES[@]}"; do
       "community_id": '"$CIRCLE_COMMUNITY_ID"',
       "space_id": '"$space_id"',
       "event": {
+        "ends_at": "'"$correct_end"'",
         "event_setting_attributes": {
           "starts_at": "'"$correct_start"'",
-          "ends_at": "'"$correct_end"'"
+          "duration_in_seconds": '"$duration"'
         }
       }
     }' \
     "https://app.circle.so/api/admin/v2/events/$c_id")
 
   if [ "$HTTP_CODE" = "200" ]; then
+    # Verify ends_at in response
+    resp_ends=$(jq -r '.ends_at // empty' /tmp/circle_update_resp.json)
+    if [ -n "$resp_ends" ] && [ "$resp_ends" != "$correct_end" ]; then
+      echo "[$((update_ok + 1))/$total] WARN Circle#$c_id ends_at mismatch: got $resp_ends, expected $correct_end"
+    fi
     update_ok=$((update_ok + 1))
-    echo "[$update_ok/$total] OK  Circle#$c_id \"$name\" -> $correct_start"
+    echo "[$update_ok/$total] OK  Circle#$c_id \"$name\" -> start=$correct_start end=$correct_end (${duration}s)"
   elif [ "$HTTP_CODE" = "401" ]; then
     echo "[$((update_ok + update_fail + 1))/$total] GOT 401 — Circle API cooldown. Pausing 5 minutes..."
     sleep 300
@@ -239,9 +262,10 @@ for c_id in "${!UPDATES[@]}"; do
         "community_id": '"$CIRCLE_COMMUNITY_ID"',
         "space_id": '"$space_id"',
         "event": {
+          "ends_at": "'"$correct_end"'",
           "event_setting_attributes": {
             "starts_at": "'"$correct_start"'",
-            "ends_at": "'"$correct_end"'"
+            "duration_in_seconds": '"$duration"'
           }
         }
       }' \
