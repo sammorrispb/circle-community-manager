@@ -1,0 +1,13 @@
+{
+  "name": "circle-community-manager",
+  "plugins": [
+    {
+      "name": "circle-community-manager",
+      "description": "Manage Circle.so community from Claude Code conversations",
+      "source": {
+        "source": "directory",
+        "path": "."
+      }
+    }
+  ]
+}

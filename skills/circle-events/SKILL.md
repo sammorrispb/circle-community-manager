@@ -6,7 +6,7 @@ description: >-
   "past events", "add attendee", "event management", "delete event",
   "update event", or any operation involving Circle.so community events
   and attendees.
-version: 1.0.0
+version: 1.1.0
 ---
 
 # Circle.so Event Management
@@ -30,7 +30,7 @@ curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
 
 Response: `{ "records": [...], "has_next_page": true|false }`
 
-Each event record contains: `id`, `name`, `slug`, `description`, `starts_at`, `ends_at`, `location`, `event_type`, `space_id`, `created_at`, `rsvp_count`.
+Each event record contains: `id`, `name`, `slug`, `body`, `starts_at`, `ends_at`, `location_type`, `in_person_location`, `virtual_location_url`, `duration_in_seconds`, `rsvp_disabled`, `hide_attendees`, `space` (object with `id`, `name`, `slug`), `url`, `created_at`, `likes_count`, `comments_count`, `cover_image_url`, `topics`.
 
 ### Get Single Event
 
@@ -41,37 +41,68 @@ curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
 
 ### Create Event
 
+Circle events use a Rails nested resource pattern. The payload must:
+1. Put `community_id` and `space_id` at the root level
+2. Wrap event fields inside an `event` key
+3. Put schedule/location in `event_setting_attributes` (singular) inside `event`
+4. For in-person events, `in_person_location` must be a JSON-stringified object (not null)
+
 ```bash
 curl -s -X POST \
   -H "Authorization: Token $CIRCLE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "community_id": '"$CIRCLE_COMMUNITY_ID"',
-    "name": "Event Title",
     "space_id": SPACE_ID,
-    "starts_at": "2026-03-15T18:00:00Z",
-    "ends_at": "2026-03-15T20:00:00Z",
-    "location": "Rockville Courts",
-    "event_type": "in_person",
-    "description": "Event description text"
+    "event": {
+      "name": "Event Title",
+      "body": "Event description text",
+      "event_setting_attributes": {
+        "starts_at": "2026-03-15T18:00:00.000Z",
+        "ends_at": "2026-03-15T20:00:00.000Z",
+        "location_type": "in_person",
+        "in_person_location": "{\"formatted_address\":\"ADDRESS\",\"name\":\"VENUE NAME\"}",
+        "duration_in_seconds": 7200,
+        "rsvp_disabled": false,
+        "hide_attendees": false,
+        "send_email_reminder": true,
+        "send_in_app_notification_reminder": true,
+        "send_email_confirmation": true,
+        "send_in_app_notification_confirmation": true,
+        "hide_location_from_non_attendees": false,
+        "enable_custom_thank_you_message": false
+      }
+    }
   }' \
   "https://app.circle.so/api/admin/v2/events"
 ```
 
 Required fields:
-- `name` — event title
-- `space_id` — which space to create it in (list spaces first if unknown)
-- `starts_at` — ISO 8601 datetime
+- `community_id` (root) — community to create in
+- `space_id` (root) — which space to post the event in (list spaces first if unknown)
+- `event.name` — event title
+- `event.event_setting_attributes.starts_at` — ISO 8601 datetime
+- `event.event_setting_attributes.location_type` — `"in_person"`, `"virtual"`, or `"tbd"`
+
+Required for in-person events:
+- `event.event_setting_attributes.in_person_location` — JSON-stringified object with at minimum `formatted_address` and `name` keys. **Must not be null** or the API returns "Nil is not a valid JSON source."
 
 Optional fields:
-- `ends_at` — ISO 8601 datetime
-- `location` — free-text location string
-- `event_type` — `"in_person"`, `"virtual"`, or `"hybrid"`
-- `description` — event description (plain text or TipTap JSON)
+- `event.body` — plain text description (rendered as-is in Circle)
+- `event.event_setting_attributes.ends_at` — ISO 8601 datetime
+- `event.event_setting_attributes.duration_in_seconds` — integer
+- `event.event_setting_attributes.rsvp_disabled` — boolean (default false)
+- `event.event_setting_attributes.virtual_location_url` — URL string (for virtual events)
+
+**Common in_person_location values** (Dill Dinkers):
+- Rockville: `{"formatted_address":"40 Southlawn Ct, Rockville, MD 20850, USA","geometry":{"location":{"lat":39.1024421,"lng":-77.1294295}},"name":"Dill Dinkers Rockville"}`
+- North Bethesda: `{"formatted_address":"4942 Boiling Brook Pkwy, North Bethesda, MD 20852, USA","name":"Dill Dinkers North Bethesda"}`
 
 **Natural language date handling**: When the user says something like "Thursday at 6pm", convert to ISO 8601 using the current date context. Always confirm the interpreted date before creating.
 
 ### Update Event
+
+Uses the same nested structure as create. Only include fields that need to change.
 
 ```bash
 curl -s -X PUT \
@@ -79,23 +110,28 @@ curl -s -X PUT \
   -H "Content-Type: application/json" \
   -d '{
     "community_id": '"$CIRCLE_COMMUNITY_ID"',
-    "name": "Updated Title",
-    "location": "New Location"
+    "space_id": SPACE_ID,
+    "event": {
+      "name": "Updated Title",
+      "event_setting_attributes": {
+        "starts_at": "2026-03-15T19:00:00.000Z"
+      }
+    }
   }' \
   "https://app.circle.so/api/admin/v2/events/EVENT_ID"
 ```
 
-Only include fields that need to change.
-
 ### Delete Event
+
+Requires both `community_id` and `space_id` as query parameters.
 
 ```bash
 curl -s -X DELETE \
   -H "Authorization: Token $CIRCLE_API_KEY" \
-  "https://app.circle.so/api/admin/v2/events/EVENT_ID?community_id=$CIRCLE_COMMUNITY_ID"
+  "https://app.circle.so/api/admin/v2/events/EVENT_ID?community_id=$CIRCLE_COMMUNITY_ID&space_id=SPACE_ID"
 ```
 
-Returns HTTP 204 on success. **Always confirm with user before deleting.**
+Returns `{"message":"Event deleted."}` with HTTP 200 on success. **Always confirm with user before deleting.**
 
 ## Attendee Management
 
@@ -144,7 +180,7 @@ For event listing, extract useful fields:
 ```bash
 curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
   "https://app.circle.so/api/admin/v2/events?community_id=$CIRCLE_COMMUNITY_ID&per_page=100&page=1" \
-  | jq '[.records[] | {id, name, starts_at, ends_at, location, event_type, rsvp_count}]'
+  | jq '[.records[] | {id, name, starts_at, ends_at, location_type, url, space: .space.name}]'
 ```
 
 ## Common Workflows
