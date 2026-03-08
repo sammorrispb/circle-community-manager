@@ -106,5 +106,12 @@ Present results as a summary table:
 - **Base URL**: `https://app.circle.so/api/admin/v2`
 - **Auth header**: `Authorization: Token $CIRCLE_API_KEY`
 - **Content-Type**: `application/json` (for POST/PUT/PATCH)
-- **Community scoping**: Every endpoint requires `community_id` as a query param or body field
-- **Rate limit**: Respect 429 responses; Circle enforces per-token limits
+- **Community scoping**: Admin API v2 tokens are community-scoped. Behavior varies by endpoint:
+  - Members, Events, Spaces: accept `community_id` as optional param (works with or without)
+  - Posts, Comments: do NOT include `community_id` — it causes 401 errors
+  - When in doubt, omit `community_id` — the token already implies the community
+- **Rate limit**: Circle enforces per-token limits. Important behaviors:
+  - After bulk writes (100+ calls), reads may return 401 "API token not found" for 5-10 minutes
+  - Rapid-fire requests to non-existent endpoints (e.g., probing `/chat_rooms`) can trigger token revocation
+  - **Safe probing cadence**: Max 1 request every 3 seconds when testing unknown endpoints; max 3 unknown endpoints per session
+  - If 401 persists after 10+ minutes on known-good endpoints, the token was likely revoked — regenerate in Circle settings

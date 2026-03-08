@@ -1,7 +1,7 @@
 {
   "name": "circle-community-manager",
-  "version": "1.1.0",
-  "description": "Manage your Circle.so community directly from Claude Code conversations — members, events, spaces, and more via curl.",
+  "version": "1.2.0",
+  "description": "Manage your Circle.so community directly from Claude Code conversations — members, events, posts, spaces, and more via curl.",
   "author": {
     "name": "Sam Morris"
   },

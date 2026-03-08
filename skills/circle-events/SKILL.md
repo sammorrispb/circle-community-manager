@@ -6,7 +6,7 @@ description: >-
   "past events", "add attendee", "event management", "delete event",
   "update event", or any operation involving Circle.so community events
   and attendees.
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Circle.so Event Management
@@ -241,6 +241,24 @@ When adding multiple members to an event:
 | 409 | Duplicate attendee | Member already RSVPed |
 | 422 | Validation error | Check datetime format, space_id |
 | 429 | Rate limited | Wait and retry |
+
+## Related: Posts in Event Spaces
+
+Events in Circle live inside spaces. You can also create **posts** in event spaces (e.g., announcements, recaps, invite links). Use the circle-posts skill for post CRUD — the endpoint is `/posts` (do NOT include `community_id` for post endpoints).
+
+Common pattern: After an event, create a post in the same space with a recap, photos, or Play Date invite links for attendees.
+
+## DMs / Direct Messages — Not Available
+
+The Circle Admin API v2 does **not** expose DM/chat endpoints. Tested endpoints that return 404:
+- `/chat_rooms`
+- `/chat_room_messages`
+- `/direct_messages`
+- `/messages`
+
+For member-to-member messaging, use the Circle web UI or consider the Headless Member API (which enables member-authenticated actions but doesn't explicitly document DM creation either).
+
+**Alternative for direct outreach**: Create a post in a space with personalized content, or use email via Circle's invitation system.
 
 ## Safety Notes
 

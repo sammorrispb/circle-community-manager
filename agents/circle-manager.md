@@ -77,6 +77,22 @@ Events:
 - `POST /event_attendees` — add attendee (body: community_id, event_id, community_member_id, status)
 - `DELETE /event_attendees?community_id=ID&event_id=EID&community_member_id=MID` — remove attendee
 
+Posts (do NOT include community_id — token is community-scoped):
+- `GET /posts?space_id=SID&per_page=20&page=1&status=published` — list posts in a space
+- `GET /posts/POST_ID` — get one
+- `POST /posts` — create (body: space_id, name, body, status)
+- `PUT /posts/POST_ID` — update (body: changed fields only)
+- `DELETE /posts/POST_ID` — delete
+
+Comments (do NOT include community_id):
+- `GET /comments?post_id=PID&per_page=20&page=1` — list comments on a post
+- `POST /comments` — create (body: post_id, body)
+- `DELETE /comments/COMMENT_ID` — delete
+
+**Not Available** (Admin API v2 does not expose these):
+- DMs / Direct Messages — no `/chat_rooms`, `/chat_room_messages`, or `/direct_messages` endpoints
+- For direct outreach, create a post in a space or use Circle's web UI for DMs
+
 **Process:**
 1. Validate `$CIRCLE_API_KEY` and `$CIRCLE_COMMUNITY_ID` are set
 2. Break the task into discrete API calls
@@ -102,7 +118,8 @@ curl -s -X POST \
 
 **Safety Rules:**
 - Always confirm before destructive operations (delete member, delete event, ban)
-- Pause briefly between bulk API calls to avoid rate limiting
+- Pause 1-2 seconds between bulk API calls to avoid rate limiting
+- When probing unknown/unconfirmed endpoints, wait 3+ seconds between calls and limit to 3 per session — rapid probing can trigger token revocation
 - Report partial results if some operations in a batch fail
 - Never expose the API key in output
 

@@ -6,7 +6,7 @@ description: >-
   "remove member", "show member info", "who is in the community",
   "member management", or any operation involving Circle.so community
   members or space memberships.
-version: 1.0.0
+version: 1.2.0
 ---
 
 # Circle.so Member Management
@@ -194,6 +194,52 @@ When given a list of emails (or names + emails):
 | 409 | Duplicate (member already exists) | Search for existing member |
 | 422 | Validation error | Check field values |
 | 429 | Rate limited | Wait and retry |
+
+## Bulk Space Membership
+
+To add multiple members to a space at once (e.g., after importing from CourtReserve):
+
+1. Fetch the target space ID from `/spaces`
+2. For each member, call `POST /space_members` with their `community_member_id`
+3. Pause briefly (~1s) between calls to respect rate limits
+4. Track successes, already-in-space (409), and failures
+
+```bash
+# Example: Add members 123, 456, 789 to space 1718302
+for MID in 123 456 789; do
+  curl -s -X POST \
+    -H "Authorization: Token $CIRCLE_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"community_id": '"$CIRCLE_COMMUNITY_ID"', "space_id": 1718302, "community_member_id": '"$MID"'}' \
+    "https://app.circle.so/api/admin/v2/space_members"
+  sleep 1
+done
+```
+
+## Headless Member API
+
+Circle offers a **Headless API** for member-impersonated actions — useful for building custom member experiences outside the Circle web app.
+
+**Auth flow:**
+1. Generate a member JWT via `POST /api/v1/headless/auth_token` (requires the admin API key as Bearer token)
+2. Use the JWT for member-scoped API calls
+
+```bash
+# Generate JWT for a member by email
+curl -s -X POST \
+  -H "Authorization: Bearer $CIRCLE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "member@example.com"}' \
+  "https://app.circle.so/api/v1/headless/auth_token"
+```
+
+Response includes `access_token` (JWT), `refresh_token`, and expiration timestamps.
+
+**Use cases**: Building custom member portals, SSO integration, member-facing apps that read/write Circle data on behalf of members.
+
+**Limitations**: Headless API requires an eligible Circle plan. If your community isn't eligible, the endpoint returns 403: "Your community isn't eligible for headless API access."
+
+**Note**: The Headless API does NOT support DM/chat operations — it covers posts, comments, events, and notifications only.
 
 ## Safety Notes
 
