@@ -1,12 +1,18 @@
 ---
 name: CR to Circle Sync
 description: >-
-  This skill should be used when the user asks to "sync CourtReserve events
-  to Circle", "create Circle events from CR", "sync tournaments", "push CR
-  events to Circle", "cr-to-circle", "sync leagues to Circle", "add league
-  members to Circle space", "partner finding post", "sync coached open play",
-  "group sync", "space membership sync", or any operation involving syncing
-  events, groups, or members from CourtReserve to Circle.so community.
+  Use this skill for any task that connects CourtReserve and Circle.so —
+  moving registrations, events, memberships, or content between the two
+  platforms. Key scenarios: sync league registrants to a Circle space, create
+  schedule posts or partner-finding posts in Circle for CourtReserve programs,
+  push coached open play attendees into level-based Circle spaces, sync
+  tournament or Next Gen events from CR to Circle. Applies whenever both
+  platforms are involved or implied — e.g., "schedule post in the coached
+  open play Circle space" implies pulling CourtReserve data. Domain terms:
+  leagues, coached open play, Link and Dink, Dill Dinkers, tournaments,
+  Circle spaces, partner-finding. Do NOT use for Circle-only tasks (manual
+  event creation, member removal, lookups) or CourtReserve-only tasks
+  (searching members, viewing registrations) with no cross-platform element.
 version: 2.0.0
 ---
 
