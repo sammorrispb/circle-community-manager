@@ -260,6 +260,47 @@ After votes are submitted, data flows to these tables (in Play Date's Supabase):
 
 **Hub sync:** Data syncs to The Hub's Supabase via `play_date_sync` mode in `api/ai-admin.js`.
 
+## Step 9: Circle Community Discovery (Return Path)
+
+After voting closes, guide completers back to the Circle community. This step prevents the survey-Circle loop by providing a clear exit from the survey flow into meaningful community engagement.
+
+**When to run:** After most voters have submitted (check Step 5). This step is optional but recommended — skip it only if the event was CR-only with no Circle presence.
+
+### Find the Original Survey Post
+
+If a survey link was posted to Circle in Step 6 (Option A), locate that post:
+
+```bash
+curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
+  "https://app.circle.so/api/admin/v2/posts?space_id=SPACE_ID&per_page=20&page=1&status=published" \
+  | jq '[.records[] | select(.name | test("SESSION_NAME_PATTERN"; "i")) | {id, name, space_id}]'
+```
+
+If no Circle post was created (Step 6 Option B was used), skip this step.
+
+### Add Welcome-Back Comment
+
+For voters who completed the survey and are Circle members, add a comment on the original survey post:
+
+```bash
+curl -s -X POST \
+  -H "Authorization: Token $CIRCLE_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "post_id": POST_ID,
+    "body": "<p><strong>Survey complete — welcome to Link &amp; Dink!</strong></p><p>Thanks to everyone who rated their playing partners! Your responses help us build better groups and match you with great partners for future events.</p><p><strong>What to explore next:</strong></p><ul><li>Check out <strong>upcoming events</strong> in this space</li><li>Browse <strong>partner-finding posts</strong> in the Tournaments space to connect with players at your level</li><li>Reply here and <strong>introduce yourself</strong> — share your skill level and what you enjoy playing!</li></ul><p>You'\''ll start seeing personalized match suggestions based on your survey responses soon.</p>"
+  }' \
+  "https://app.circle.so/api/admin/v2/comments"
+```
+
+Do NOT include `community_id` in comment creation. Do NOT include any Play Date survey links — this is the exit from the survey flow.
+
+### Note Non-Circle Voters
+
+If any voters completed the survey but are not Circle members, report them as potential Circle invite candidates. Do not auto-invite — let the user decide.
+
+Use the `circle-survey-return` command for the full workflow: `/circle-survey-return "SESSION_NAME" POST_ID`
+
 ## Variations
 
 ### Quick Session (Skip CR Lookup)
@@ -273,6 +314,10 @@ If a session already exists and the user just wants status, run Steps 5 and 7 on
 ### Re-send Links
 
 If a session exists and the user wants to nudge non-voters, run Step 5 to find pending voters, then Step 6 with only their links.
+
+### Return to Circle
+
+If voting is mostly complete and a Circle survey post exists, run Step 9 to add a welcome-back comment guiding completers to community discovery. Use `/circle-survey-return "SESSION_NAME"` or `/post-event-survey return "SESSION_NAME"`.
 
 ## Error Handling
 

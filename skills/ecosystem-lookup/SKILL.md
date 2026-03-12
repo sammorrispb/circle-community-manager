@@ -89,13 +89,24 @@ Run for both `ROCKVILLE` and `NORTHBETHESDA` if credentials exist.
 
 ## Step 4: Check Play Date Status
 
-Generate the Play Date survey URL for the player's email:
+Check whether the player has already completed the Play Date survey by querying the Hub:
 
-```
-https://play-date-five.vercel.app/#survey-{URL_ENCODED_EMAIL}
+```bash
+PROFILES=$(curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "play_date_profiles"}' \
+  "https://the-hub-nine.vercel.app/api/ai-admin")
+
+# Check if player email appears in the profiles
+echo "$PROFILES" | jq --arg email "PLAYER_EMAIL" '[.[] | select(.email == $email)]'
 ```
 
-Note: There's no public API to check Play Date completion status. Report the survey link and note "check Hub for completion status" if Hub access is available.
+- **Profile found** → report "Survey completed" in the profile card. Do NOT generate a survey link (prevents re-entry into the survey loop).
+- **No profile found** → generate the Play Date survey URL for the player's email:
+  ```
+  https://play-date-five.vercel.app/#survey-{URL_ENCODED_EMAIL}
+  ```
+- **Hub auth fails or errors** → fall back to generating the survey link and note "completion status unknown — Hub auth required to verify".
 
 ## Step 5: Hub Status (Manual Check)
 
@@ -126,8 +137,8 @@ CourtReserve (Facilities)
   Phone:          [phone]
 
 Play Date (Intake)
-  Survey Link: [URL]
-  Status:      [Check Hub for completion]
+  Status:      [Completed / Not started]
+  Survey Link: [URL if not completed, omitted if completed]
 
 Hub (Intelligence)
   Status:      [Check Hub admin for XP, ratings, groups]

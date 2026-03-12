@@ -13,6 +13,7 @@ From `$ARGUMENTS`, determine the intent:
 - **Event name or date** → full pipeline (Steps 1-6)
 - **`status SESSION_NAME`** → check vote status + results (Steps 5 + 7 only)
 - **`resend SESSION_NAME`** → re-send links to non-voters (Steps 5 + 6)
+- **`return SESSION_NAME`** → guide survey completers back to Circle community (Step 9)
 - **No arguments** → search recent CR events (Step 1) and ask user to pick
 
 ## Environment Check
@@ -41,4 +42,5 @@ Follow the `post-event-workflow` skill steps. Key decision points where you must
 /post-event-survey March 8
 /post-event-survey status "Link & Dink Round Robin — Mar 8"
 /post-event-survey resend "Link & Dink Round Robin — Mar 8"
+/post-event-survey return "Link & Dink Round Robin — Mar 8"
 ```

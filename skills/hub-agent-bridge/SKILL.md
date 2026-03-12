@@ -165,6 +165,20 @@ When the Hub agent recommends actions that involve Circle, bridge them:
 2. Create the post in Circle (use circle-posts skill)
 3. Log the outcome back to Hub
 
+### Agent Says "Player Completed Survey"
+
+When the Hub identifies players who recently completed the Play Date survey:
+
+1. Use `play_date_profiles` or `play_date_status` to get the list of recent completers
+2. For each completer, search Circle by email to check membership
+3. For completers who ARE Circle members:
+   - Run `/circle-survey-return "SESSION_NAME"` to add a welcome-back comment on the original survey post
+   - This guides them to community discovery (events, partner-finding, introductions) and prevents the survey-Circle redirect loop
+4. For completers who are NOT Circle members:
+   - Note as potential Circle invite candidates
+   - Optionally invite to Circle (use circle-members skill) — let the user decide
+5. Log the outcome back to Hub
+
 ### Agent Says "Fill Low-Capacity Event"
 
 1. Get the fill recommendations from Hub

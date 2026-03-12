@@ -37,9 +37,34 @@ curl -s -H "Authorization: Token $CIRCLE_API_KEY" \
 
 For each attendee, get their email from the member record.
 
+## Step 3.5: Check Survey Completion via Hub
+
+Before generating survey links, check which attendees have already completed the Play Date survey to avoid sending them back into the survey loop:
+
+```bash
+# Fetch Play Date profiles from the Hub
+PROFILES=$(curl -s -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "play_date_profiles"}' \
+  "https://the-hub-nine.vercel.app/api/ai-admin")
+
+# Check each attendee email against existing profiles
+echo "$PROFILES" | jq --arg email "ATTENDEE_EMAIL" '[.[] | select(.email == $email)]'
+```
+
+For each attendee:
+- **Profile found** → mark as "survey completed" — exclude from survey link list
+- **No profile** → include in survey link list (needs to take the survey)
+
+**If Hub auth fails or returns an error:** Fall back to generating links for all attendees (current behavior) and warn the operator that completion status could not be verified.
+
+Separate attendees into two groups:
+- `needs_survey[]` — attendees who still need to take the Play Date survey
+- `already_completed[]` — attendees who have already completed it
+
 ## Step 4: Generate Play Date Links
 
-For each attendee email, generate the personalized Play Date URL:
+For each attendee email **in the `needs_survey` group**, generate the personalized Play Date URL:
 
 ```
 https://play-date-five.vercel.app/#survey-{URL_ENCODED_EMAIL}
@@ -49,18 +74,44 @@ URL-encode the email (replace `@` with `%40`, etc.).
 
 ## Step 5: Compose the Post
 
-Create a post in the event's space with the invite links. Use this template:
+Create a post in the event's space with the invite links. The post has two sections depending on survey completion status.
+
+**If all attendees need the survey** (no completers), use the standard template:
 
 ```html
-<h2>🎾 Play Date Survey — Rate Your Experience!</h2>
+<h2>Play Date Survey — Rate Your Experience!</h2>
 <p>Thanks for attending <strong>{EVENT_NAME}</strong>! Help us match you with great playing partners by completing a quick Play Date survey.</p>
 <p>Click your personalized link below:</p>
 <ul>
-{FOR EACH ATTENDEE}
+{FOR EACH ATTENDEE IN needs_survey}
   <li><strong>{NAME}</strong>: <a href="{PLAY_DATE_URL}">Take the Survey</a></li>
 {END FOR}
 </ul>
 <p>The survey takes about 2 minutes and helps us build better groups for future events.</p>
+```
+
+**If some attendees already completed the survey**, use a split template:
+
+```html
+<h2>Play Date Survey — Rate Your Experience!</h2>
+<p>Thanks for attending <strong>{EVENT_NAME}</strong>!</p>
+
+<h3>Take the Survey</h3>
+<p>Help us match you with great playing partners by completing a quick Play Date survey:</p>
+<ul>
+{FOR EACH ATTENDEE IN needs_survey}
+  <li><strong>{NAME}</strong>: <a href="{PLAY_DATE_URL}">Take the Survey</a></li>
+{END FOR}
+</ul>
+
+<h3>Welcome Back!</h3>
+<p>These players have already completed their survey — thanks! Here's what to explore next:</p>
+<ul>
+  <li>Check out <strong>upcoming events</strong> in this space</li>
+  <li>Browse <strong>partner-finding posts</strong> in the Tournaments space</li>
+  <li>Reply below and introduce yourself to new players!</li>
+</ul>
+<p><em>Completed: {COMMA_SEPARATED_NAMES_OF already_completed}</em></p>
 ```
 
 ## Step 6: Confirm and Create
