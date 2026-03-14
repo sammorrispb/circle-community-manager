@@ -16,7 +16,20 @@ Circle spaces **cannot** be created via API — they must be pre-created manuall
 | League | *NOT CREATED — create manually* | `TBD` | Season-based membership + schedule post | New space each season | NEEDS SPACE |
 | Coached Open Play | *NOT CREATED — create manually* | `TBD` | Level-based membership + schedule post | Persistent | NEEDS SPACE |
 
-**IMPORTANT**: Leagues, Coached Open Play, and Next Gen Academy spaces do NOT exist yet in Circle. Before running group sync for these categories, Sam must:
+### Player Journey Event Space Groups
+
+Events within individual spaces are organized by player journey stage. CourtReserve events are routed to these groups based on `EventCategoryName` (primary) and `EventName` keywords/skill level parsing (secondary).
+
+| Player Journey | Circle Space Name | Space ID | Skill Level | CR Routing Keywords | Status |
+|---------------|-------------------|----------|-------------|---------------------|--------|
+| Newbie | Newbie Welcome Events | `TBD` | 2.0–2.5 | "beginner", "intro", "new player", "first time", level 2.0–2.5 | NEEDS SPACE |
+| Advanced Beginner | Advanced Beginner Events | `TBD` | 2.5–3.0 | level 2.5–3.0 | NEEDS SPACE |
+| Intermediate | Intermediate Events | `TBD` | 3.0–3.5 | level 3.0–3.5 | NEEDS SPACE |
+| Int-Adv Competitive | Intermediate-Advanced Competitive Events | `TBD` | 3.5–4.0 | "competitive", level 3.5–4.0 | NEEDS SPACE |
+| Advanced Elite | Advanced Elite Invite-Only Events | `TBD` | 4.0+ / 4.5+ | "elite", "invite", "invite-only", level 4.0+, 4.5+ | NEEDS SPACE |
+| Public | Public Events | `TBD` | Any / None | "social", no level specified, multi-level, tournaments spanning multiple groups | NEEDS SPACE |
+
+**IMPORTANT**: All player journey spaces, plus Leagues, Coached Open Play, and Next Gen Academy spaces do NOT exist yet in Circle. Before running group sync for these categories, Sam must:
 1. Create the space(s) in the Circle web UI
 2. Copy the space ID from the URL or use the API lookup below
 3. Update this mapping table with the real space ID
@@ -144,6 +157,104 @@ LEVEL=$(echo "$EVENT_NAME" | grep -oP '\d+\.\d+-\d+\.\d+' | head -1)
 ---
 Updated automatically from CourtReserve.
 ```
+
+### 4. Player Journey Event Routing
+
+Events from CourtReserve are routed to player journey spaces using a two-step classification: `EventCategoryName` as the primary filter, then `EventName` keyword/skill level parsing as the secondary filter.
+
+**Routing priority** (evaluated in order — first match wins):
+
+1. **Advanced Elite** — `EventCategoryName` or `EventName` contains "elite" or "invite-only" OR parsed level is 4.0+ or 4.5+
+2. **Int-Adv Competitive** — `EventCategoryName` or `EventName` contains "competitive" (but not "Competitive Events" which routes to Tournaments) OR parsed level is 3.5–4.0
+3. **Intermediate** — parsed level is 3.0–3.5
+4. **Advanced Beginner** — parsed level is 2.5–3.0
+5. **Newbie Welcome** — `EventCategoryName` or `EventName` contains "beginner", "intro", "new player", or "first time" OR parsed level is 2.0–2.5
+6. **Public Events** — `EventName` contains "social" OR event spans multiple skill groups OR no skill level can be determined
+
+**Level detection** (extends existing coached open play logic):
+
+```bash
+# Extract skill level range from event name
+# Matches patterns like "3.0-3.5", "4.0+", "4.5+"
+parse_player_journey() {
+  local name="$1"
+  local name_lower=$(echo "$name" | tr '[:upper:]' '[:lower:]')
+
+  # Check keyword matches first
+  if echo "$name_lower" | grep -qiE '(elite|invite.only)'; then
+    echo "advanced_elite"; return
+  fi
+  if echo "$name_lower" | grep -qiE '(beginner|intro|new.player|first.time)'; then
+    echo "newbie"; return
+  fi
+  if echo "$name_lower" | grep -qiE '\bsocial\b'; then
+    echo "public"; return
+  fi
+
+  # Parse numeric skill level from event name
+  local level_range=$(echo "$name" | grep -oP '\d+\.\d+-\d+\.\d+' | head -1)
+  local level_min=$(echo "$name" | grep -oP '(\d+\.\d+)\+' | head -1 | sed 's/+//')
+
+  if [ -n "$level_min" ]; then
+    # "4.0+" or "4.5+" format
+    if (( $(echo "$level_min >= 4.0" | bc -l) )); then
+      echo "advanced_elite"
+    elif (( $(echo "$level_min >= 3.5" | bc -l) )); then
+      echo "int_adv_competitive"
+    elif (( $(echo "$level_min >= 3.0" | bc -l) )); then
+      echo "intermediate"
+    elif (( $(echo "$level_min >= 2.5" | bc -l) )); then
+      echo "advanced_beginner"
+    else
+      echo "newbie"
+    fi
+  elif [ -n "$level_range" ]; then
+    # "3.0-3.5" format — use the lower bound
+    local low=$(echo "$level_range" | cut -d'-' -f1)
+    if (( $(echo "$low >= 4.0" | bc -l) )); then
+      echo "advanced_elite"
+    elif (( $(echo "$low >= 3.5" | bc -l) )); then
+      echo "int_adv_competitive"
+    elif (( $(echo "$low >= 3.0" | bc -l) )); then
+      echo "intermediate"
+    elif (( $(echo "$low >= 2.5" | bc -l) )); then
+      echo "advanced_beginner"
+    else
+      echo "newbie"
+    fi
+  else
+    echo "public"  # No level detected — default to public
+  fi
+}
+```
+
+**Journey group to space ID lookup** (update TBD values after creating spaces):
+
+```bash
+get_journey_space_id() {
+  case "$1" in
+    newbie)                echo "TBD" ;;  # Newbie Welcome Events
+    advanced_beginner)     echo "TBD" ;;  # Advanced Beginner Events
+    intermediate)          echo "TBD" ;;  # Intermediate Events
+    int_adv_competitive)   echo "TBD" ;;  # Intermediate-Advanced Competitive Events
+    advanced_elite)        echo "TBD" ;;  # Advanced Elite Invite-Only Events
+    public)                echo "TBD" ;;  # Public Events
+    *)                     echo "TBD" ;;  # Unknown — default to public
+  esac
+}
+```
+
+**Example routing for known CR event names**:
+
+| CR Event Name | Detected Journey | Target Space |
+|--------------|-----------------|--------------|
+| Coached Open Play: 3.0-3.5 | Intermediate | Intermediate Events |
+| Link & Dink Tournament: Women's Only 3.0-3.5 | Intermediate | Intermediate Events |
+| Link and Dink Tournament: Mixed Doubles 3.5+ | Int-Adv Competitive | Int-Adv Competitive Events |
+| DUPR Round Robin: 4.0+ | Advanced Elite | Advanced Elite Invite-Only Events |
+| Beginner Clinic | Newbie | Newbie Welcome Events |
+| Social Mixer | Public | Public Events |
+| Link & Dink Tournament (no level) | Public | Public Events |
 
 ## Member Matching: CR → Circle
 

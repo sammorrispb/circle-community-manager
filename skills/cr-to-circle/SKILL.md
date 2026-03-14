@@ -53,6 +53,7 @@ These categories sync registrant memberships and discussion posts to Circle spac
 | League | Season-based space (e.g., "Spring 2026 Leagues") | Add registrants to space + schedule post | New space each season |
 | Tournament | Tournaments (`1916764`) | Partner-finding discussion post | Per-event |
 | Coached Open Play | Level-based space (e.g., "Coached Open Play: 3.0-3.5") | Add attendees to space + schedule post | Persistent |
+| Player Journey Events | Journey-based spaces (Newbie through Elite) | Route events by skill level to appropriate space | Persistent |
 
 **Member matching**: CR → Circle matching uses email. Search Circle with `GET /api/admin/v2/community_members/search?query=EMAIL`, then add to space with `POST /api/admin/v2/space_members`.
 
@@ -86,6 +87,21 @@ Always exclude cancelled events (`IsCanceled == true`).
 |---|---|---|
 | Competitive Events / Tournaments | Tournaments | `1916764` |
 | Next Gen / Kids Program | Link and Dink Events | `1718302` |
+
+### Player Journey Event Spaces
+
+Events are also routed to player-journey-based spaces using `EventCategoryName` (primary) + `EventName` skill level parsing (secondary). See `references/group-sync.md` for full routing logic, keyword patterns, and bash helpers.
+
+| Player Journey | Circle Space | Space ID | Skill Level | Status |
+|---|---|---|---|---|
+| Newbie | Newbie Welcome Events | `TBD` | 2.0–2.5 | NEEDS SPACE |
+| Advanced Beginner | Advanced Beginner Events | `TBD` | 2.5–3.0 | NEEDS SPACE |
+| Intermediate | Intermediate Events | `TBD` | 3.0–3.5 | NEEDS SPACE |
+| Int-Adv Competitive | Intermediate-Advanced Competitive Events | `TBD` | 3.5–4.0 | NEEDS SPACE |
+| Advanced Elite | Advanced Elite Invite-Only Events | `TBD` | 4.0+ / 4.5+ | NEEDS SPACE |
+| Public | Public Events | `TBD` | Any / None | NEEDS SPACE |
+
+**Classification priority**: Elite/invite-only keywords > Competitive keyword > Numeric level parsing > Beginner/intro keywords > Social keyword > Default to Public. Events with no detectable skill level go to Public Events.
 
 ## Location Mapping
 
